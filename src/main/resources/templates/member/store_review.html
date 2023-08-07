@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>리뷰 작성</title>
+    <!-- Font Awesome CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <style>
+        .rating {
+            display: inline-block;
+            font-size: 24px;
+            direction: rtl;
+
+        }
+
+        .rating input {
+            display: none;
+        }
+
+        .rating label {
+            color: #ccc;
+            cursor: pointer;
+        }
+
+        .rating label i {
+            transition: color 0.3s;
+        }
+
+        .rating input:checked ~ label {
+            color: #ffc107;
+        }
+
+        .rating label:hover i {
+            color: #ffc107;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"
+            integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+</head>
+<body>
+<h1>리뷰 작성하기</h1>
+
+<form id="submitForm" method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
+    <div>
+        <label for="starRating">별점 (1~5)</label>
+        <div th:if="${review.starRating == null}">
+            <p style="color: red">※별점을 선택해야 합니다.</p>
+        </div>
+        <div class="rating" id="starRating">
+            <input type="radio" name="starRating" id="star1" value="5" required
+                   th:checked="${review.starRating == 5}"><label for="star1"><i class="fas fa-star"></i></label>
+            <input type="radio" name="starRating" id="star2" value="4" required
+                   th:checked="${review.starRating == 4}"><label for="star2"><i class="fas fa-star"></i></label>
+            <input type="radio" name="starRating" id="star3" value="3" required
+                   th:checked="${review.starRating == 3}"><label for="star3"><i class="fas fa-star"></i></label>
+            <input type="radio" name="starRating" id="star4" value="2" required
+                   th:checked="${review.starRating == 2}"><label for="star4"><i class="fas fa-star"></i></label>
+            <input type="radio" name="starRating" id="star5" value="1" required
+                   th:checked="${review.starRating == 1}"><label for="star5"><i class="fas fa-star"></i></label>
+        </div>
+    </div>
+
+    <hr/>
+
+    <div class="review" th:if="${review}">
+        <p>리뷰 작성</p>
+        <textarea th:text="${review.review}" name="review" id="reviewContent" rows="5" cols="50" required
+                  placeholder="리뷰 내용 입력"></textarea>
+
+    </div>
+
+    <div th:unless="${review}">
+        <!-- review 객체가 null인 경우에 이 부분이 렌더링됩니다. -->
+        <p>review객체가 null</p>
+    </div>
+
+
+    <div>;
+        <button type="submit">리뷰 등록/수정</button>
+        <a href="/member/takestore"> 목록 이동 </a>
+    </div>
+</form>
+
+<script>
+    $(document).ready(function () {
+        $('#submitForm').on('submit', function (event) {
+            // 에디터의 내용이 textarea에 적용된다.
+            oEditors.getById["contents"].exec("UPDATE_CONTENTS_FIELD", []);
+
+            // 별점 체크
+            if (!$('input[name="starRating"]:checked').val()) {
+                event.preventDefault(); // 폼 제출을 막음
+                alert('별점을 선택해야 합니다.'); // 메시지 표시
+            }
+        });
+    });
+</script>
+</body>
+</html>

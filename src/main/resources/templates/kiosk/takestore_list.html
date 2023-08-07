@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>회원 정보</title>
+    <style>
+        .list table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .list table th, .list table td {
+            border: solid 1px #000;
+        }
+
+        p.nothing {
+            text-align: center;
+            padding: 100px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.1.2/dist/axios.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"
+            integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+    <script>
+        $(document).ready(function () {
+
+            $('.reserveCancel').on('click', function () {
+
+                var id = $(this).val();
+
+                var msg = '예약을 취소 하시겠습니까?';
+                if (!confirm(msg)) {
+                    return false;
+                }
+
+                var url = '/api/member/store/cancel.api';
+                var parameter = {
+                    takeStoreId: id
+                };
+                axios.post(url, parameter).then(function (response) {
+                    console.log(response);
+                    console.log(response.data);
+
+                    response.data = response.data || {};
+                    response.data.header = response.data.header || {};
+
+                    if (!response.data.header.result) {
+                        alert(response.data.header.message);
+                        return false;
+                    }
+
+                    // 정상적인 경우
+                    alert(' 예약이 정상적으로 취소되었습니다. ');
+                    location.reload();
+
+                }).catch(function (err) {
+                    console.log(err);
+                });
+
+                return false;
+
+            });
+
+
+            $('.visitComplete').on('click', function () {
+
+                var id = $(this).val();
+
+                var msg = '방문을 확정 하시겠습니까?';
+                if (!confirm(msg)) {
+                    return false;
+                }
+
+                var url = '/api/member/store/complete.api';
+                var parameter = {
+                    takeStoreId: id
+                };
+                axios.post(url, parameter).then(function (response) {
+                    console.log(response);
+                    console.log(response.data);
+
+                    response.data = response.data || {};
+                    response.data.header = response.data.header || {};
+
+                    if (!response.data.header.result) {
+                        alert(response.data.header.message);
+                        return false;
+                    }
+
+                    // 정상적인 경우
+                    alert(' 방문이 정상적으로 확정되었습니다. ');
+                    location.reload();
+
+                }).catch(function (err) {
+                    console.log(err);
+                });
+
+                return false;
+
+            });
+
+        });
+    </script>
+</head>
+<body>
+
+<h1>회원 정보</h1>
+<div th:replace="/fragments/layout.html :: fragment-body-menu"></div>
+
+<div>
+    <hr/>
+    <a href="/member/info">회원 정보 수정</a>
+    |
+    <a href="/member/password">비밀번호 변경</a>
+    |
+    <a href="/member/takestore">내 예약 목록</a>
+    <hr/>
+</div>
+
+<div class="list">
+    <table>
+        <thead>
+        <tr>
+            <th> NO</th>
+            <th>예약 날짜</th>
+            <th>예약 시간</th>
+            <th>매장</th>
+            <th>상태</th>
+        </tr>
+        </thead>
+        <tbody id="dataLIst">
+        <tr th:each="x, i : ${list}">
+            <td th:text="${i.index +1}">1</td>
+            <td>
+                <p th:text="${x.date}">2023-07-24</p>
+            </td>
+            <td>
+                <p th:text="${x.time}">10:00</p>
+            </td>
+            <td>
+                <p th:text="${x.subject}">매장명</p>
+            </td>
+
+            <td>
+                <p th:if="${x.status eq 'REQ'}">예약신청</p>
+                <p th:if="${x.status eq 'COMPLETE'}">예약승인</p>
+                <p th:if="${x.status} eq 'CANCEL'">예약취소</p>
+                <p th:if="${x.status} eq 'REFUSE'">예약거절</p>
+                <p th:if="${x.status} eq 'VISIT_COMPLETE'">방문확인</p>
+
+                <div class="row-buttons" th:if="${x.status eq 'REQ' or x.status eq 'COMPLETE'}">
+                    <button class="reserveCancel" type="button" th:value="${x.id}">예약취소 하기</button>
+                </div>
+
+                <div class="row-buttons" th:if="${x.status eq 'COMPLETE'}">
+                    <p style="display: none;">Date: <span id="reservationDate" th:text="${x.date}">2023-08-07</span></p>
+                    <p style="display: none;">Time: <span id="reservationTime" th:text="${x.time}">14:00</span></p>
+                    <button class="visitComplete" type="button" th:value="${x.id}">방문확인 하기</button>
+                    <p class="info-message"></p>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const reservationDateStr = document.getElementById('reservationDate').textContent;
+        const reservationTimeStr = document.getElementById('reservationTime').textContent;
+
+        const [year, month, day] = reservationDateStr.split('-');
+        const [hour, minute] = reservationTimeStr.split(':');
+
+        const reservationDate = new Date(year, month - 1, day, hour, minute);
+        const currentTime = new Date();
+
+        const differenceInMilliseconds = reservationDate - currentTime;
+        const differenceInMinutes = differenceInMilliseconds / (1000 * 60);
+
+        const visitCompleteButton = document.querySelector('.visitComplete');
+        const infoMessage = document.querySelector('.info-message');
+
+        if (differenceInMinutes <= -1) {
+            visitCompleteButton.disabled = true;
+            infoMessage.textContent = '예약 시간이 지났습니다.';
+        } else if (differenceInMinutes <= 10) {
+            infoMessage.textContent = '방문확인 가능.';
+        } else {
+            visitCompleteButton.disabled = true;
+            infoMessage.textContent = '예약 10분전부터 방문확인 가능합니다.';
+        }
+
+        // 취소 함수 호출
+        cancelReservation();
+
+        function cancelReservation() {
+            var cancelButton = document.querySelector('.reserveCancel'); // cancelButton을 찾아야 합니다.
+            if (differenceInMinutes <= -1) {
+                var id = cancelButton.value;
+
+                var url = '/api/member/store/cancel.api';
+                var parameter = {
+                    takeStoreId: id
+                };
+
+                axios.post(url, parameter).then(function (response) {
+                    console.log(response);
+                    console.log(response.data);
+
+                    response.data = response.data || {};
+                    response.data.header = response.data.header || {};
+
+                    if (!response.data.header.result) {
+                        return false;
+                    }
+
+                    // 정상적인 경우
+                    location.reload();
+                }).catch(function (err) {
+                    console.log(err);
+                });
+
+                return false;
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

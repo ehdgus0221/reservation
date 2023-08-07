@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>매장 상세 페이지</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        .list table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .list table th, .list table td {
+            border: solid 1px #000;
+        }
+
+        p.nothing {
+            text-align: center;
+            padding: 100px;
+        }
+
+        .list .buttons {
+            position: relative;
+            padding: 10px 0;
+        }
+
+        .list .buttons a, .list .buttons button {
+            border-width: 0;
+            background-color: transparent;
+            text-decoration: underline;
+            font-size: 14px;
+            line-height: 20px;
+            height: 20px;
+            color: #000;
+            cursor: pointer;
+        }
+
+        .list .buttons .total-count {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.1.2/dist/axios.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"
+            integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        $(function () {
+            flatpickr("#date", {
+                dateFormat: "Y-m-d",
+                minDate: "today",
+                defaultDate: "today" // 오늘 날짜가 기본으로 선택되도록 설정
+            });
+
+            $('#submitForm').on('submit', function () {
+                /* 프로미스 패턴 */
+
+                if (!confirm('매장 예약을 하시겠습니까?')) {
+                    return false;
+                }
+
+                var $thisForm = $(this);
+
+                var selectedDate = $('#date').val();
+                var selectedTime = $('#selected-time').val();
+
+                var url = '/api/store/req.api';
+                var parameter = {
+                    storeId: $thisForm.find('input[name=id]').val(),
+                    date: selectedDate,
+                    time: selectedTime
+                };
+                axios.post(url, parameter).then(function (response) {
+
+                    response.data = response.data || {};
+                    response.data.header = response.data.header || {};
+
+                    if (!response.data.header.result) {
+                        alert(response.data.header.message);
+                        return false;
+                    }
+
+                    // 정상적인 경우
+                    alert(' 예약 신청이 정상적으로 되었습니다. ');
+                    location.href = '/';
+
+                }).catch(function (err) {
+                    console.log(err);
+                });
+
+                return false;
+            });
+
+            const timeButtonsContainer = $('#time-buttons');
+            const selectedTimeInput = $('#selected-time');
+            const selectedDatetimeDisplay = $('#selected-datetime');
+
+            const availableTimes = ['10:00', '12:00', '14:00', '16:00', '18:00', '20:00'];
+
+            // 시간 버튼 생성 함수
+            function createTimeButtons(selectedDate) {
+                const today = new Date();
+                const todayDate = today.toISOString().slice(0, 10);
+
+                timeButtonsContainer.empty(); // 기존 버튼 제거
+
+                for (const time of availableTimes) {
+                    const button = $('<button></button>');
+                    button.text(time);
+                    button.prop('id', `time-${time}`); // 시간 버튼에 id 부여
+                    button.on('click', function (event) {
+                        event.preventDefault(); // 폼 서브밋 막기
+                        selectTime(time);
+                    });
+
+
+                    timeButtonsContainer.append(button);
+                }
+            }
+
+            function selectTime(time) {
+                timeButtonsContainer.find('button').removeClass('selected');
+                timeButtonsContainer.find(`button:contains(${time})`).addClass('selected');
+                selectedTimeInput.val(time);
+
+                // 선택한 날짜와 시간을 화면에 출력
+                const selectedDate = $('#date').val();
+                selectedDatetimeDisplay.text(`${selectedDate} ${time}`);
+            }
+
+            // 페이지가 로드되면 시간 버튼을 생성
+            createTimeButtons($('#date').val());
+
+            // 날짜가 변경될 때 시간 버튼도 갱신
+            $('#date').on('change', function () {
+                createTimeButtons($(this).val());
+            });
+
+        });
+    </script>
+</head>
+<body>
+<h1>매장 상세 정보</h1>
+<div th:replace="/fragments/layout.html :: fragment-body-menu"></div>
+
+<div>
+    <h2>매장명: <span th:text="${detail.subject}">매장</span></h2>
+    <div th:utext="${detail.contents}"></div>
+    <div>
+        <p>주소 : <span th:text="${detail.addr}">주소</span></p>
+        <p>상세주소 : <span th:text="${detail.addrDetail}">상세주소</span></p>
+        <hr/>
+        <p> 예약신청 </p>
+    </div>
+    <div>
+        <form method="post" action="/reservation" id="reservation-form">
+            <p><label for="date">날짜 </label></p>
+            <input type="date" id="date" name="date" required>
+            <br>
+            <p></p>
+            <label>시간</label>
+            <div id="time-buttons">
+                <!-- 예약 시간 button jquery로 진행 -->
+            </div>
+            <input type="hidden" id="selected-time" name="time" required>
+            <br>
+
+            <!-- 선택한 날짜와 시간 출력 -->
+            <div id="selected-datetime"></div>
+            <br>
+
+
+        </form>
+    </div>
+
+    <div>
+        <form id="submitForm" method="post">
+            <input type="hidden" name="id" th:value="${detail.id}"/>
+            <button type="submit">예약하기</button>
+            <a href="/store">매장목록</a>
+        </form>
+    </div>
+
+    <div th:if="${reviewMap != null and reviewMap.containsKey(detail.id)}">
+        <p>리뷰:</p>
+        <ul>
+            <li th:each="review, index : ${reviewMap.get(detail.id)}">
+                <span th:text="${index.count}"></span>. <span th:text="${review}"></span>
+            </li>
+        </ul>
+    </div>
+    <div th:unless="${reviewMap != null and reviewMap.containsKey(detail.id)}">
+        <p>리뷰 없음</p>
+    </div>
+
+</div>
+</body>
+</html>

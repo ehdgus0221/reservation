@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zerobase.reservation.store.mapper.TakeStoreMapper">
+
+    <sql id="selectListWhere">
+<!--        <if test="searchStoreId > 0">
+            and c.id = #{searchStoreId}
+        </if>-->
+
+        <if test="searchDate != null">
+            and tc.date = #{searchDate}
+        </if>
+        <if test="searchDate == null">
+
+        </if>
+
+
+    </sql>
+
+    <select id="selectListCount" resultType="long">
+
+        select count(*)
+        from take_store tc
+            join store c on tc.store_id = c.id
+            join member m on tc.user_id = m.user_id
+        where 1 = 1
+            <include refid="selectListWhere"/>
+    </select>
+
+    <select id="selectList" resultType="com.zerobase.reservation.store.dto.TakeStoreDto">
+
+        select tc.*
+            , c.subject
+            , m.user_name
+            , m.phone
+        from take_store tc
+            join store c on tc.store_id = c.id
+            join member m on tc.user_id = m.user_id
+        where 1 = 1
+            <include refid="selectListWhere"/>
+        order by reg_dt desc
+        limit #{pageStart}, #{pageEnd}
+    </select>
+
+    <select id="selectListMyStore" resultType="com.zerobase.reservation.store.dto.TakeStoreDto">
+        select tc.*
+            , c.subject
+        from take_store tc
+            join store c on tc.store_id = c.id
+        where tc.user_id = #{userId}
+        order by reg_dt desc
+    </select>
+
+</mapper>

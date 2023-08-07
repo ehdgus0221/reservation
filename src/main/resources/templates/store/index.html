@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>매장 정보 페이지</title>
+    <style>
+        .list table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .list table th, .list table td {
+            border: solid 1px #000;
+        }
+
+        p.nothing {
+            text-align: center;
+            padding: 100px;
+        }
+
+        .list .buttons {
+            position: relative;
+            padding: 10px 0;
+        }
+
+        .list .buttons a, .list .buttons button {
+            border-width: 0;
+            background-color: transparent;
+            text-decoration: underline;
+            font-size: 14px;
+            line-height: 20px;
+            height: 20px;
+            color: #000;
+            cursor: pointer;
+        }
+
+        .list .buttons .total-count {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+
+        .pager {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .pager a.on {
+            font-weight: bold;
+            color: red;
+        }
+
+    </style>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"
+            integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+
+</head>
+<body>
+<h1>매장 정보</h1>
+<div th:replace="/fragments/layout.html :: fragment-body-menu"></div>
+
+<div>
+    <a href="?">
+        전체 (<span th:text="${storeTotalCount}">0</span>)</a>
+
+    <th:block th:each="y : ${categoryList}">
+        |
+        <a th:href="'/store?categoryId=' + ${y.id}">
+            <span th:text="${y.categoryName}">카테고리명</span>(<span th:text="${y.storeCount}">0</span>)</a>
+    </th:block>
+</div>
+
+<div class="list">
+    <div class="buttons">
+        <button id="sortButton" class="custom-button" onclick="sortByName()">가나다 순</button>
+        <button id="sortButton_distance" class="custom-button" onclick="toggleSort()">거리 순</button>
+        <button id="sortStarRating" class="custom-button">별점 순</button>
+    </div>
+    <div>
+        <label for="searchInput">매장명 검색:</label>
+        <input type="text" id="searchInput">
+        <button onclick="searchStores()">검색</button>
+        <button id="resetButton">목록 초기화</button>
+    </div>
+    <table id="storeTable" class="store-table">
+        <thead>
+        <tr>
+            <th> 매장명</th>
+            <th> 별점</th>
+            <th> 거리</th>
+            <th> 매장 주소</th>
+            <th> 상세 주소</th>
+            <th> 매장 소개</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="x : ${list}" class="store-row">
+            <td>
+                <p>
+                    <a th:href="'/store/' + ${x.id}">
+                        <h3 th:text="${x.subject}">매장명</h3>
+                    </a>
+                </p>
+            </td>
+            <td>
+                <p th:if="${averageRatingMap[x.id] == null}">리뷰 없음</p>
+                <p th:unless="${averageRatingMap[x.id] == null}">
+                    <span class="average-rating" th:text="${averageRatingMap[x.id]}">별점</span>
+                </p>
+            </td>
+
+            <td>
+                <p style="display:none" class="location-info">매장 위치: x좌표: <span th:text="${x.XLocation}"></span>, y좌표:
+                    <span th:text="${x.YLocation}"></span></p>
+                <p class="distance"></p>
+
+            </td>
+
+            <td>
+                <p th:text="${x.addr}">매장 위치</p>
+            </td>
+            <td>
+                <p th:text="${x.addrDetail}">상세 주소</p>
+            </td>
+            <td>
+                <p th:text="${x.summary}">매장 소개</p>
+            </td>
+        </tr>
+
+        </tbody>
+    </table>
+
+    <div class="pager" th:utext="${pager}">
+    </div>
+</div>
+
+<!-- 거리 순으로 나열하기 위해 내 좌표 필요-->
+<p style="display:none" id="result"></p>
+
+<!--별점 순 나열 기능-->
+<script>
+    $(document).ready(function () {
+        var ascending = true; // 오름차순으로 시작
+        $("#sortStarRating").click(function () {
+            var rows = $(".store-row").get();
+            rows.sort(function (a, b) {
+                var aRating = parseFloat($(a).find(".average-rating").text());
+                var bRating = parseFloat($(b).find(".average-rating").text());
+
+                // '리뷰 없음' 값이 있는 경우 처리
+                if (isNaN(aRating)) aRating = Number.NEGATIVE_INFINITY;
+                if (isNaN(bRating)) bRating = Number.NEGATIVE_INFINITY;
+
+                return ascending ? aRating - bRating : bRating - aRating;
+            });
+
+            // 정렬된 행을 다시 테이블에 삽입
+            $.each(rows, function (index, row) {
+                $("#storeTable").append(row);
+            });
+
+            // 오름차순/내림차순 토글
+            ascending = !ascending;
+        });
+    });
+</script>
+
+<!-- 매장명 검색 기능-->
+
+<script>
+    function searchStores() {
+        var input, filter, table, tr, td, i, txtValue;
+        input = document.getElementById("searchInput");
+        filter = input.value.toUpperCase();
+        table = document.getElementById("storeTable");
+        tr = table.getElementsByClassName("store-row");
+
+        for (i = 0; i < tr.length; i++) {
+            td = tr[i].getElementsByTagName("td")[0]; // 매장명이 위치한 열
+            if (td) {
+                txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+</script>
+<script>
+    $(document).ready(function () {
+        // 버튼 클릭 이벤트 등록
+        $("#resetButton").click(function () {
+            resetList();
+        });
+    });
+
+    function resetList() {
+        var table, tr, i;
+        table = document.getElementById("storeTable");
+        tr = table.getElementsByClassName("store-row");
+
+        for (i = 0; i < tr.length; i++) {
+            tr[i].style.display = "";
+        }
+    }
+</script>
+
+<!-- 가나다 순 or 역순 -->
+<script>
+    let ascendingOrder = true;
+
+    function sortByName() {
+        const tableBody = document.querySelector('.list table tbody');
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+
+        rows.sort((a, b) => {
+            const nameA = a.querySelector('h3').innerText.toUpperCase();
+            const nameB = b.querySelector('h3').innerText.toUpperCase();
+
+            if (ascendingOrder) {
+                return nameA.localeCompare(nameB);
+            } else {
+                return nameB.localeCompare(nameA);
+            }
+        });
+
+        rows.forEach((row) => {
+            tableBody.appendChild(row);
+        });
+
+        // 정렬 기준 토글
+        ascendingOrder = !ascendingOrder;
+
+        // 버튼 텍스트 변경
+        const sortButton = document.getElementById('sortButton');
+        sortButton.innerText = ascendingOrder ? '가나다 순' : '가나다 순';
+    }
+</script>
+
+<!-- 내 위치(좌표) 가져오기 & 매장과의 거리-->
+<script>
+    // 사용자의 좌표를 전역 변수에 저장
+    let myLocation;
+
+    // 사용자의 위치를 가져오는 함수
+    function getMyLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
+        } else {
+            document.getElementById("result").innerText = "Geolocation을 지원하지 않는 브라우저입니다.";
+        }
+    }
+
+    function successCallback(position) {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        myLocation = {lat: latitude, lng: longitude};
+        document.getElementById("result").innerText = `내 좌표 - 위도: ${latitude}, 경도: ${longitude}`;
+        updateDistances(); // 위치를 가져온 후 매장과의 거리를 업데이트
+
+    }
+
+    function errorCallback(error) {
+        let errorMessage = "위치 정보를 가져오는데 실패했습니다.";
+        switch (error.code) {
+            case error.PERMISSION_DENIED:
+                errorMessage += " 사용자가 위치 정보 사용을 거부했습니다.";
+                break;
+            case error.POSITION_UNAVAILABLE:
+                errorMessage += " 위치 정보를 사용할 수 없습니다.";
+                break;
+            case error.TIMEOUT:
+                errorMessage += " 위치 정보를 가져오는데 시간이 초과되었습니다.";
+                break;
+        }
+        document.getElementById("result").innerText = errorMessage;
+    }
+
+
+    // 두 지점 간의 거리를 계산하는 함수 (허버사인 공식 이용)
+    function getDistance(lat1, lng1, lat2, lng2) {
+        const radianLat1 = (Math.PI * lat1) / 180;
+        const radianLng1 = (Math.PI * lng1) / 180;
+        const radianLat2 = (Math.PI * lat2) / 180;
+        const radianLng2 = (Math.PI * lng2) / 180;
+
+        const sinHalfLat = Math.sin((radianLat2 - radianLat1) / 2);
+        const sinHalfLng = Math.sin((radianLng2 - radianLng1) / 2);
+
+        const a = sinHalfLat * sinHalfLat + Math.cos(radianLat1) * Math.cos(radianLat2) * sinHalfLng * sinHalfLng;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        const earthRadius = 6371; // 지구 반지름 (단위: km)
+        const distance = earthRadius * c;
+        return distance.toFixed(2); // 소수점 2자리까지 반환
+    }
+
+    function updateDistances(sortAscending) {
+        const storeElements = document.querySelectorAll(".list table tbody tr");
+
+        storeElements.forEach(storeElement => {
+            const locationInfoElement = storeElement.querySelector(".location-info");
+            const distanceElement = storeElement.querySelector(".distance");
+
+            const storeX = parseFloat(locationInfoElement.querySelector("span:nth-child(1)").innerText);
+            const storeY = parseFloat(locationInfoElement.querySelector("span:nth-child(2)").innerText);
+
+            const distance = getDistance(myLocation.lat, myLocation.lng, storeX, storeY);
+
+            distanceElement.innerText = `거리: ${distance} km`;
+        });
+
+        // 거리를 업데이트한 후에 버튼을 누른 상태라면 정렬도 다시 수행
+        if (!sortAscending) {
+            sortStoreElementsByDistance();
+        }
+    }
+
+    let sortAscending = true;
+
+    function toggleSort() {
+        sortAscending = !sortAscending;
+        sortStoreElementsByDistance();
+        updateButtonLabel();
+    }
+
+    function sortStoreElementsByDistance() {
+        const tableBody = document.querySelector('.list table tbody');
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+
+        rows.sort((a, b) => {
+            const distanceA = parseFloat(a.querySelector('.distance').innerText.split(' ')[1]);
+            const distanceB = parseFloat(b.querySelector('.distance').innerText.split(' ')[1]);
+
+            if (sortAscending) {
+                return distanceA - distanceB;
+            } else {
+                return distanceB - distanceA;
+            }
+        });
+
+        rows.forEach((row) => {
+            tableBody.appendChild(row);
+        });
+    }
+
+    function updateButtonLabel() {
+        const sortButtonDistance = document.getElementById('sortButton_distance');
+        sortButtonDistance.innerText = sortAscending ? '거리 순' : '거리 순';
+    }
+
+    // 페이지 로드 시 자동으로 내 좌표 가져오기
+    window.onload = function () {
+        getMyLocation();
+    };
+</script>
+</body>
+</html>
